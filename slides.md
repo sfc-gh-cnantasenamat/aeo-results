@@ -1,384 +1,237 @@
 ---
 # AEO Benchmark: Results
 
+## V4 — 9 models, 840 questions, 4 deployment configurations
+
 ---
 # The Punchline
 
-We tested the claude-opus-4-6 model on a set of 50 Snowflake developer questions, scored by a panel of 3 judges.
+We tested **8 frontier models** (plus GLM 5.2) on **840 Snowflake developer questions**, scored by a panel of **5 LLM judges**, under 4 deployment configurations: **Baseline**, **Citation** (C), **Agentic** (A), and **Citation + Agentic** (C+A).
 
-**Baseline (bare model, no help):** scored 60.9% on answer quality and passed 68.5% of required facts
+**The result is the same for every single model:** the **C+A** configuration wins.
 
-**Best configuration (citation instruction + agentic tools):** scored 93.8% on answer quality and passed 91.5% of required facts
+**Best baseline (bare model):** as low as 41.8% on answer quality.
 
-That is a **+32.9 percentage point improvement** without changing the model, its training, or its weights. The only difference was how we deployed it.
+**Best configuration (`gpt-5.5` with Citation + Agentic):** **84.1%** answer quality, 79.9% must-have fact pass rate.
+
+Averaged across all 8 models, moving from Baseline to C+A lifted answer quality **+26.5 points** and must-have fact pass rate **+22.6 points** — with no change to model weights or training. The only difference was how each model was deployed.
 
 ```
-  Answer Quality Score
-  Baseline  60.9% ████████████████████████░░░░░░░░░░░░░░░░
-  Best      93.8% █████████████████████████████████████░░░
-
-  Must-Have Fact Pass Rate
-  Baseline  68.5% ███████████████████████████░░░░░░░░░░░░░
-  Best      91.5% ████████████████████████████████████░░░░
+  Answer Quality (8-model average)
+  Baseline (bare)   49.5% ███████████████████████░░░░░░░░░░░░░░░░
+  Citation + Agentic 76.0% ████████████████████████████████████░░░
 ```
 
 What deployment changes made this happen? Keep reading.
 
 ---
-# The Full 2⁴ Factorial
-
-## We ran all 16 combinations of 4 binary levers
+# The Benchmark at a Glance
 
 ```
-+------+--------+----------+---------+----------------+---------+-------+-----------+
-| Run  | Domain | Citation | Agentic | Self-Critique  | Score % | MH %  | vs Base   |
-+------+--------+----------+---------+----------------+---------+-------+-----------+
-|  1   |        |          |         |                |  60.9%  | 68.5% | baseline  |
-|  2   |   x    |          |         |                |  68.6%  | 62.0% | +7.7pp    |
-|  6   |        |    x     |         |                |  71.1%  | 48.5% | +10.2pp   |
-|  5   |   x    |    x     |         |                |  71.5%  | 54.5% | +10.6pp   |
-| 14   |        |          |         |       x        |  56.9%  | 66.5% | -4.0pp    |
-| 15   |   x    |          |         |       x        |  62.0%  | 69.0% | +1.1pp    |
-| 16   |        |    x     |         |       x        |  65.7%  | 60.7% | +4.8pp    |
-| 17   |   x    |    x     |         |       x        |  67.4%  | 69.3% | +6.5pp    |
-|  3   |        |          |   x     |                |  72.2%  | 93.5% | +11.3pp   |
-|  9   |   x    |          |   x     |                |  70.4%  | 89.8% | +9.5pp    |
-|  4   |        |    x     |   x     |                |  93.8%  | 91.5% | +32.9pp   |
-| 10   |   x    |    x     |   x     |                |  76.0%  | 90.5% | +15.1pp   |
-| 18   |        |          |   x     |       x        |  70.8%  | 88.2% | +9.9pp    |
-| 19   |   x    |          |   x     |       x        |  71.2%  | 88.7% | +10.3pp   |
-|  7   |        |    x     |   x     |       x        |  93.2%  | 93.5% | +32.3pp   |
-|  8   |   x    |    x     |   x     |       x        |  73.0%  | 91.2% | +12.1pp   |
-+------+--------+----------+---------+----------------+---------+-------+-----------+
+  840 questions   32 Snowflake product categories × 4 question types
+  9 models        opus 4.6/4.7/4.8 · sonnet 4.5/4.6/5 · gpt 5.4/5.5 · glm 5.2
+  4 configs       Baseline · Citation (C) · Agentic (A) · Citation+Agentic (C+A)
+  5 judges        per response, scored independently, averaged
+  6 scores        Correctness, Completeness, Recency, Citation, Recommendation
+                  (1-10 each) + Must-Have fact pass rate (5 facts per question)
+  composite       (avg total + must-have×10) / 60 × 100
 ```
 
-MH = Must-Have fact pass rate, pp = percentage points
+**Agentic (A)** = the model answers through Cortex Code, with tools (doc search, SQL, web) instead of a single direct completion call. **Citation (C)** = the question is appended with an instruction to cite official `docs.snowflake.com`. **C+A** applies both.
 
+Every one of the 33 runs is soundness-verified: 840/840 responses contain a real answer body (no truncated planning stubs).
 
 ---
-# How Main Effects Are Calculated
-
-Each pair holds the other 3 levers constant and flips only Agentic on/off:
+# Full Leaderboard (33 runs)
 
 ```
-+----+----+----+-----------------+----------------+----------+---------+
-|  D |  C | SC | Without Agentic | With Agentic   | Score +  |  MH +   |
-+----+----+----+-----------------+----------------+----------+---------+
-|    |    |    | Run 1  (60.9%)  | Run 3  (72.2%) | +11.3pp  | +25.0pp |
-| x  |    |    | Run 2  (68.6%)  | Run 9  (70.4%) |  +1.8pp  | +27.8pp |
-|    |  x |    | Run 6  (71.1%)  | Run 4  (93.8%) | +22.7pp  | +43.0pp |
-| x  |  x |    | Run 5  (71.5%)  | Run 10 (76.0%) |  +4.5pp  | +36.0pp |
-|    |    | x  | Run 14 (56.9%)  | Run 18 (70.8%) | +13.9pp  | +21.7pp |
-| x  |    | x  | Run 15 (62.0%)  | Run 19 (71.2%) |  +9.2pp  | +19.7pp |
-|    |  x | x  | Run 16 (65.7%)  | Run 7  (93.2%) | +27.5pp  | +32.8pp |
-| x  |  x | x  | Run 17 (67.4%)  | Run 8  (73.0%) |  +5.6pp  | +21.9pp |
-+----+----+----+-----------------+----------------+----------+---------+
++----+-----------------------+--------+---------+-------+
+| #  | Model                 | Config | Score % | MH %  |
++----+-----------------------+--------+---------+-------+
+|  1 | openai-gpt-5.5        |  C+A   |  84.1%  | 79.9% |
+|  2 | claude-opus-4-8       |  C+A   |  82.1%  | 79.0% |
+|  3 | claude-sonnet-5       |  C+A   |  81.5%  | 76.9% |
+|  4 | claude-sonnet-4-6     |  C+A   |  79.5%  | 74.9% |
+|  5 | claude-opus-4-7       |  C+A   |  75.2%  | 69.9% |
+|  6 | claude-opus-4-8       |   A    |  73.5%  | 78.2% |
+|  7 | claude-opus-4-6       |  C+A   |  72.3%  | 68.2% |
+|  8 | claude-sonnet-4-5     |  C+A   |  72.0%  | 67.5% |
+|  9 | openai-gpt-5.5        |   A    |  70.2%  | 77.5% |
+| 10 | claude-sonnet-5       |   A    |  69.4%  | 73.6% |
+| 11 | claude-sonnet-4-6     |   A    |  66.0%  | 69.7% |
+| 12 | claude-opus-4-7       |   C    |  65.4%  | 54.8% |
+| 13 | glm-5.2               |   A    |  64.4%  | 65.3% |
+| 14 | openai-gpt-5.5        |   C    |  63.1%  | 47.1% |
+| 15 | claude-sonnet-5       |   C    |  61.3%  | 48.4% |
+| 16 | openai-gpt-5.4        |  C+A   |  61.0%  | 50.3% |
+| 17 | claude-opus-4-7       |   A    |  60.3%  | 61.7% |
+| 18 | openai-gpt-5.4        |   C    |  60.2%  | 44.0% |
+| 19 | claude-opus-4-6       |   C    |  59.9%  | 48.7% |
+| 20 | claude-sonnet-4-5     |   A    |  59.6%  | 60.6% |
+| 21 | claude-opus-4-7       |  base  |  58.9%  | 60.9% |
+| 22 | claude-opus-4-6       |   A    |  55.0%  | 56.6% |
+| 23 | claude-opus-4-8       |   C    |  53.3%  | 43.9% |
+| 24 | claude-sonnet-4-5     |   C    |  53.2%  | 42.1% |
+| 25 | claude-sonnet-4-6     |   C    |  53.1%  | 42.0% |
+| 26 | claude-opus-4-8       |  base  |  51.9%  | 50.3% |
+| 27 | claude-opus-4-6       |  base  |  51.3%  | 51.4% |
+| 28 | openai-gpt-5.4        |   A    |  51.3%  | 47.8% |
+| 29 | claude-sonnet-5       |  base  |  50.8%  | 50.3% |
+| 30 | openai-gpt-5.5        |  base  |  49.1%  | 45.7% |
+| 31 | openai-gpt-5.4        |  base  |  47.0%  | 43.4% |
+| 32 | claude-sonnet-4-6     |  base  |  45.1%  | 43.4% |
+| 33 | claude-sonnet-4-5     |  base  |  41.8%  | 40.4% |
++----+-----------------------+--------+---------+-------+
 ```
 
-**Average main effect:** +12.1pp on score, +28.5pp on must-have. The same calculation is done for each of the 4 levers.
+The top 5 slots are all **C+A**. The bottom of the board is all **Baseline**. Configuration, not model choice, sorts this leaderboard.
+
+---
+# The Configuration Progression
+
+## Averaged across all 8 full-factorial models
+
+```
++----------+---------+-------+
+| Config   | Score % | MH %  |
++----------+---------+-------+
+| Baseline |  49.5%  | 48.2% |
+| Citation |  58.7%  | 46.4% |
+| Agentic  |  63.2%  | 65.7% |
+| C + A    |  76.0%  | 70.8% |
++----------+---------+-------+
+```
+
+```
+  Answer Quality Score
+  Baseline  49.5% ███████████████████████░░░░░░░░░░░░░░░░
+  Citation  58.7% ████████████████████████████░░░░░░░░░░░
+  Agentic   63.2% ██████████████████████████████░░░░░░░░░
+  C + A     76.0% ████████████████████████████████████░░░
+
+  Must-Have Fact Pass Rate
+  Baseline  48.2% ███████████████████████░░░░░░░░░░░░░░░░
+  Citation  46.4% ██████████████████████░░░░░░░░░░░░░░░░░
+  Agentic   65.7% ███████████████████████████████░░░░░░░░
+  C + A     70.8% ██████████████████████████████████░░░░░
+```
+
+Note that **Citation alone lowers the must-have pass rate** (48.2% → 46.4%). Agentic is what moves facts.
 
 ---
 # Main Effects
 
-## Averaged across all 8 paired comparisons in the factorial design
+## Averaged across every paired comparison in the design
 
-- **Agentic Tools (web search, doc lookup, skills):** improved answer quality score by +12.5 percentage points on average, and improved must-have fact pass rate by +19.2 points on average
+- **Agentic Tools (Cortex Code: doc search, SQL, web):** improved answer quality **+15.5 points** and must-have fact pass rate **+21.0 points**. It is the single most impactful lever, and the only one that materially improves *both* metrics.
 
-- **Citation Instruction ("cite official Snowflake docs"):** improved answer quality score by +8.7 points on average, but reduced must-have fact pass rate by -7.7 points (the model cited docs it had not actually read)
-
-- **Domain Prompt (200-word Snowflake expert system prompt):** reduced answer quality score by -2.0 points on average, and reduced must-have pass rate by -2.8 points
-
-- **Self-Critique ("review and revise your answer"):** reduced answer quality score by -4.6 points on average, and reduced must-have pass rate by -1.3 points
-
-Only agentic tools improved *both* score and must-have simultaneously.
+- **Citation Instruction ("cite official Snowflake docs"):** improved answer quality **+11.0 points**, but moved must-have pass rate only **+1.6 points** — because without tools the model cites documentation it never actually read.
 
 ```
   Average Main Effect on Score (pp)
-  Agentic   +12.5 ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
-  Citation   +8.7 ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
-  Domain     -2.0 ░░░░
-  Self-Crit  -4.6 ░░░░░░░░░
+  Agentic   +15.5 ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+  Citation  +11.0 ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
 
   Average Main Effect on Must-Have (pp)
-  Agentic   +19.2 ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
-  Citation   -7.7 ░░░░░░░░░░░░░░░
-  Domain     -2.8 ░░░░░░
-  Self-Crit  -1.3 ░░░
+  Agentic   +21.0 ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+  Citation   +1.6 ▓▓▓
 ```
+
+Citation tells the model *what to look for*. Agentic tools let it actually *find and verify* the answer. Together they compound.
 
 ---
-# Lever 1: Agentic Tools
+# C + A Wins for Every Model
 
-## Giving the model web search, doc lookup, and skills (i.e. Cortex Code) was the single most impactful change
+## The best configuration is identical across the board
 
 ```
-+----+----+----+-----------------+----------------+----------+---------+
-|  D |  C | SC | Without Agentic | With Agentic   | Score +  |  MH +   |
-+----+----+----+-----------------+----------------+----------+---------+
-|    |    |    | Run 1  (60.9%)  | Run 3  (72.2%) | +11.3pp  | +25.0pp |
-|    |  x |    | Run 6  (71.1%)  | Run 4  (93.8%) | +22.7pp  | +43.0pp |
-|    |    |  x | Run 14 (56.9%)  | Run 18 (70.8%) | +13.9pp  | +21.7pp |
-|    |  x |  x | Run 16 (65.7%)  | Run 7  (93.2%) | +27.5pp  | +32.8pp |
-+----+----+----+-----------------+----------------+----------+---------+
++-----------------------+-------------+---------+
+| Model                 | Best config | Score % |
++-----------------------+-------------+---------+
+| openai-gpt-5.5        |    C + A    |  84.1%  |
+| claude-opus-4-8       |    C + A    |  82.1%  |
+| claude-sonnet-5       |    C + A    |  81.5%  |
+| claude-sonnet-4-6     |    C + A    |  79.5%  |
+| claude-opus-4-7       |    C + A    |  75.2%  |
+| claude-opus-4-6       |    C + A    |  72.3%  |
+| claude-sonnet-4-5     |    C + A    |  72.0%  |
+| openai-gpt-5.4        |    C + A    |  61.0%  |
++-----------------------+-------------+---------+
 ```
 
-In every single one of the 8 paired comparisons, adding agentic tools improved both the answer quality score and the must-have fact pass rate. No other lever achieved this.
-
-Average improvement: +12.1 points on score, +28.5 points on must-have. Giving the model the ability to look things up was worth more than any prompt instruction.
+8 models, 8 winners, one configuration. The deployment recipe generalizes — it is not a quirk of any single model.
 
 ---
-# Lever 2: Citation Instruction
+# The Citation Dimension Tells the Story
 
-## Appending "cite official Snowflake documentation" to each question boosted scores, but only when tools were available to actually find the docs
+## Per-dimension judge scores (1-10), Baseline vs C+A
 
 ```
-+----+-----+----+------------------+----------------+-----------+---------+
-|  D | Agt | SC | Without Citation | With Citation  | Score +   |  MH +   |
-+----+-----+----+------------------+----------------+-----------+---------+
-|    |  x  |    | Run 3  (72.2%)   | Run 4  (93.8%) | +21.6pp   | -2.0pp  |
-|    |  x  | x  | Run 18 (70.8%)   | Run 7  (93.2%) | +22.4pp   | +5.3pp  |
-|    |     |    | Run 1  (60.9%)   | Run 6  (71.1%) | +10.2pp   | -20.0pp |
-| x  |     |    | Run 9  (70.4%)   | Run 10 (76.0%) |  +5.6pp   | +0.7pp  |
-+----+-----+----+------------------+----------------+-----------+---------+
++-----------------+----------+--------+--------+
+| Dimension       | Baseline |  C+A   | Delta  |
++-----------------+----------+--------+--------+
+| Correctness     |   6.1    |  7.7   | +1.6   |
+| Completeness    |   5.3    |  7.2   | +1.9   |
+| Recency         |   6.4    |  8.2   | +1.8   |
+| Citation        |   1.5    |  7.9   | +6.4   |
+| Recommendation  |   5.6    |  7.4   | +1.8   |
++-----------------+----------+--------+--------+
 ```
 
-The massive +21 to +22 point gains happened specifically when agentic tools were ON and the domain prompt was OFF. When the domain prompt was present, the citation effect shrank to just +1.8 to +5.6 points.
+```
+  Citation dimension (1-10)
+  Baseline  1.5 ██████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+  C + A     7.9 ███████████████████████████████░░░░░░░░░
+```
 
-Citation tells the agent what to look for. Agentic tools let it actually find and verify those references.
+Bare models essentially **do not cite** (1.5/10). Add Citation + Agentic and citation quality jumps to 7.9/10 — the model now points to documentation it actually retrieved. Every other dimension improves too, but citation is the transformation.
 
 ---
-# Lever 3: Domain Prompt
+# GLM 5.2: Agentic-Only
 
-## The data: 4 selected paired comparisons
+GLM 5.2 is not available through Snowflake's `CORTEX.COMPLETE` SQL function — it can only be reached through the agentic Cortex Code path. So GLM 5.2 has an **Agentic (A)** entry only; its Baseline / Citation / C+A configs cannot be produced without self-hosting a ~753B-parameter model.
 
-```
-+-----+-----+----+-----------------+----------------+----------+---------+
-|  C  | Agt | SC | Without Domain  | With Domain    | Score +  |  MH +   |
-+-----+-----+----+-----------------+----------------+----------+---------+
-|     |     |    | Run 1  (60.9%)  | Run 2  (68.6%) |  +7.7pp  | -6.5pp  |
-|  x  |     |    | Run 6  (71.1%)  | Run 5  (71.5%) |  +0.4pp  | +6.0pp  |
-|  x  |  x  |    | Run 4  (93.8%)  | Run 10 (76.0%) | -17.8pp  | -1.0pp  |
-|  x  |  x  | x  | Run 7  (93.2%)  | Run 8  (73.0%) | -20.2pp  | -2.3pp  |
-+-----+-----+----+-----------------+----------------+----------+---------+
-```
+- **`glm-5.2` (Agentic):** 64.4% score, 65.3% must-have — mid-pack among the agentic runs, ahead of several models' A configs.
 
-- **Without domain prompt:** scores averaged 72.6% across all non-domain runs, because the model relied on its own retrieval and training without rigid framing
-
-- **With domain prompt:** scores averaged 70.6% overall, but the effect split sharply. It helped bare models (+3.7 points) by providing useful Snowflake framing, yet hurt agentic models (-9.9 points) by constraining how the agent used its tools and overriding information discovered through web search
-
-The worst cases: adding the domain prompt to the best configuration (citation + agentic) destroyed **17.8 and 20.2 points** of score.
+It is included as an agentic-only reference point rather than a full factorial entry.
 
 ---
-# Lever 4: Self-Critique
+# Difficulty by Question Type
 
-## The data: 4 selected paired comparisons
-
-```
-+-----+-----+-----+-----------------+----------------+----------+---------+
-|  D  |  C  | Agt | Without SC      | With SC        | Score +  |  MH +   |
-+-----+-----+-----+-----------------+----------------+----------+---------+
-|     |     |     | Run 1  (60.9%)  | Run 14 (56.9%) |  -4.0pp  | -2.0pp  |
-|  x  |     |     | Run 2  (68.6%)  | Run 15 (62.0%) |  -6.6pp  | +7.0pp  |
-|     |     |  x  | Run 3  (72.2%)  | Run 18 (70.8%) |  -1.4pp  | -5.3pp  |
-|     |  x  |  x  | Run 4  (93.8%)  | Run 7  (93.2%) |  -0.6pp  | +2.0pp  |
-+-----+-----+-----+-----------------+----------------+----------+---------+
-```
-
-Average effect across all 8 pairs: **-3.0 points on answer quality score.**
-
-What happened: the self-critique instruction caused the model to second-guess correct answers, add unnecessary hedging language ("it depends", "you may want to consider"), and remove specific technical details in favor of safer, more generic statements. More thinking did not produce better answers.
-
----
-# The Golden Combination
-
-## The winning formula
-
-**No domain prompt + citation instruction + agentic**
-
-The top 2 configurations both share this exact pattern:
-
-- **Run 4 scored 93.8%:** citation instruction + agentic, no domain prompt, no self-critique
-- **Run 7 scored 93.2%:** citation instruction + agentic + self-critique, no domain prompt
-
-What happens when you add a domain prompt?
-
-- **Run 10 scored 76.0%:** domain prompt + citation + agentic, a drop of 17.8 points from Run 4
-- **Run 8 scored 73.0%:** domain prompt + citation + agentic + self-critique, a drop of 20.2 points from Run 7
-
-A 200-word system prompt destroyed a 20+ point advantage. The best instruction was no instruction at all.
+## Composite score averaged across all runs
 
 ```
-  Score % (adding domain prompt)
-  Run 4  93.8% ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
-  Run 7  93.2% ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
-  Run 10 76.0% ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░░░░░░░
-  Run 8  73.0% ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░░░░░░░░
-             no domain prompt  +domain prompt
++------------+---------+
+| Type       | Score % |
++------------+---------+
+| Explain    |  63.1%  |
+| Debug      |  62.8%  |
+| Compare    |  61.1%  |
+| Implement  |  60.3%  |
++------------+---------+
 ```
 
----
-# The Same Model Story
-
-## Every data point uses claude-opus-4-6
-
-- **Bare model with no help:** 60.9% score (Run 1)
-- **Added a 200-word domain prompt:** 68.6% score, a gain of +7.7 points (Run 2)
-- **Added citation instruction instead:** 71.1% score, a gain of +10.2 points (Run 6)
-- **Added both domain prompt and citation:** 71.5% score, a gain of +10.6 points (Run 5)
-- **Added agentic tools instead (no prompt changes):** 72.2% score, a gain of +11.3 points (Run 3)
-- **Added citation instruction + agentic tools:** 93.8% score, a gain of +32.9 points (Run 4)
-
-Same neural network weights. Same training data. The 32.9-point difference came entirely from giving the model tools and a lightweight instruction to cite its sources.
-
-```
-  Score progression (same model)
-  Bare       60.9% ████████████████████████░░░░░░░░░░░░░░░░
-  +Domain    68.6% ███████████████████████████░░░░░░░░░░░░░
-  +Citation  71.1% ████████████████████████████░░░░░░░░░░░░
-  +Dom+Cite  71.5% ████████████████████████████░░░░░░░░░░░░
-  +Agentic   72.2% █████████████████████████████░░░░░░░░░░░
-  +Cite+Agt  93.8% █████████████████████████████████████░░░
-```
-
----
-# Cross-Model Baselines
-
-## We also tested GPT-5.4 and Llama 4 Maverick to establish external reference points
-
-```
-+-----------------------+---------+-------+
-| Respondent            | Score % | MH %  |
-+-----------------------+---------+-------+
-| openai-gpt-5.4 Base  |  57.5%  | 55.0% |
-| claude-opus-4-6 Base  |  60.9%  | 68.5% |
-| llama4-maverick Base  |  38.4%  | 43.0% |
-+-----------------------+---------+-------+
-| openai-gpt-5.4 Aug   |  72.5%  | 58.5% |
-| claude-opus-4-6 Aug   |  68.6%  | 62.0% |
-| llama4-maverick Aug   |  65.2%  | 54.0% |
-+-----------------------+---------+-------+
-| CC + Cite (Run 4)     |  93.8%  | 91.5% |
-+-----------------------+---------+-------+
-```
-
-The best non-agentic result across all three models was GPT-5.4 with a domain prompt at 72.5%. The best agentic configuration scored 93.8%, which is 21.3 points higher.
-
-Switching to a different (and arguably stronger) model closed far less of the gap than simply giving the original model access to tools.
-
-```
-  Score % across models
-  Llama Base   38.4% ███████████████░░░░░░░░░░░░░░░░░░░░░░░░
-  GPT-5.4 Base 57.5% ███████████████████████░░░░░░░░░░░░░░░░
-  Claude Base  60.9% ████████████████████████░░░░░░░░░░░░░░░
-  Llama Aug    65.2% ██████████████████████████░░░░░░░░░░░░░
-  Claude Aug   68.6% ███████████████████████████░░░░░░░░░░░░
-  GPT-5.4 Aug  72.5% █████████████████████████████░░░░░░░░░░
-  CC + Cite    93.8% █████████████████████████████████████░░░
-```
-
----
-# Must-Have Pass Rates
-
-## Must-have measures whether the answer includes specific required facts (4 per question, 200 total)
-
-- **Baseline model with no tools (Run 1):** passed 68.5% of required facts, meaning it missed about 1 in 3 required details
-- **Model with agentic tools (all agentic runs):** passed 88 to 93.5% of required facts, because it could look up and verify specific details in real time
-- **Model with citation instruction but no tools (Run 6):** passed only 48.5% of required facts, worse than baseline, because the model fabricated documentation references it had not actually read
-
-Citation without tools is dangerous: it teaches the model to sound authoritative while getting the facts wrong. Citation with tools is powerful: it tells the agent to verify and present what it actually found.
-
-```
-  Must-Have Fact Pass Rate
-  Cite no tools  48.5% ███████████████████░░░░░░░░░░░░░░░░░░░░
-  Baseline       68.5% ███████████████████████████░░░░░░░░░░░░░
-  Agentic best   93.5% █████████████████████████████████████░░░
-```
-
----
-# Score vs Must-Have
-
-## Most configurations improve one metric at the expense of the other. Only one configuration improves both.
-
-**Non-agentic with citation (Runs 5 and 6):** Answer quality score went up because the model wrote more polished, reference-heavy responses. But must-have pass rate went down because those references were often fabricated, and the model missed required factual details.
-
-**Agentic without citation (Run 3):** Must-have pass rate jumped to 93.5% because the agent retrieved real facts. But the answer quality score stayed at a moderate 72.2% because the agent did not always present its findings in a well-structured, citation-rich format.
-
-**Agentic with citation (Run 4):** Both metrics peaked together at 93.8% score and 91.5% must-have. The citation instruction told the agent to show its work, and the tools ensured that work was grounded in real documentation.
-
-```
-  Score %                        Must-Have %
-  Cite only  71.1% ████████████████████████████  48.5% ███████████████████
-  Agent only 72.2% █████████████████████████████  93.5% █████████████████████████████████████
-  Agent+Cite 93.8% █████████████████████████████████████  91.5% ████████████████████████████████████░
-```
-
----
-# 5 Surprising Findings
-
-- **Adding more instructions to the system prompt made answers worse, not better.** The 200-word domain prompt reduced scores by 17 to 20 points in the best configurations, because it constrained how the agent used its tools.
-
-- **Self-critique ("review and revise your answer") was counterproductive.** It reduced answer quality in 7 out of 8 comparisons by causing the model to second-guess correct content and replace specific details with hedging language.
-
-- **Telling the model to cite docs without giving it tools to find them was actively harmful.** The must-have pass rate dropped from 68.5% to 48.5% because the model fabricated references to documentation it had never read.
-
-- **The highest-scoring configuration used the fewest prompt instructions of any non-baseline run.** No system prompt at all. Just "please cite official Snowflake documentation" appended to each question, plus access to tools.
-
-- **A 33-point score improvement came from deployment infrastructure, not model training.** The same claude-opus-4-6 weights went from 60.9% to 93.8% based solely on whether it had tools and a citation nudge.
-
----
-# Why Less Is More
-
-The domain prompt tells the model what it should already know about Snowflake. But the model already knows most of it from training, and the rigid framing prevents the agent from discovering and incorporating information it does not already know.
-
-Agentic tools let the model find what it actually needs in real time. Web search, documentation lookup, and code execution provide current, verified information that no static system prompt can match.
-
-Self-critique asks the model to doubt its own work. But on domain-specific factual questions, the model's first answer is usually more detailed and accurate than its revised one. The revision process introduces hedging, removes specific examples, and replaces confident correct statements with cautious incorrect ones.
-
-**The optimal pattern:** Give the model access to tools and a lightweight nudge to cite its sources. Then get out of the way and let it work.
-
----
-# Implications for AI Products
-
-- **Invest in tools and infrastructure, not longer prompts.** Agentic tools delivered a +32.9 point improvement, while the best prompt engineering delivered only +7.7 points. That is a 4x difference in impact for the same underlying model.
-
-- **Use citation as a lightweight nudge appended to user queries, not as a system prompt.** Appending "please cite official documentation" to each question outperformed a carefully crafted 200-word domain expert system prompt.
-
-- **Do not assume self-critique improves quality.** The popular "generate then revise" pattern actively degraded answer quality on factual domain questions. Test it empirically before shipping it.
-
-- **Expect domain prompts to have diminishing returns as tools improve.** System prompts help bare models that have nothing else, but they constrain models that have access to real-time information retrieval. As tool infrastructure matures, prompts should get shorter, not longer.
-
----
-# What We Would Do Differently
-
-- **Test with a larger question bank.** 50 questions gives good overall signal but limits per-category statistical power. Some product categories had only 2 to 3 questions, making it hard to isolate category-specific lever effects.
-
-- **Add human judges alongside the LLM panel.** The 3-model judge panel (GPT-5.4, Claude Opus, Llama Maverick) is reproducible and consistent, but all three may share systematic biases from similar training data.
-
-- **Run per-category lever analysis.** Citation might matter more for API reference questions than for architecture questions. The factorial design supports this analysis but 50 questions is too few to do it reliably.
-
-- **Measure latency and cost per configuration.** Agentic runs take longer and cost more tokens. The quality improvement is clear, but the cost-quality tradeoff deserves explicit quantification.
-
-- **Test multi-turn conversations.** All 50 questions were single-turn. Real developer interactions involve follow-up questions and clarifications that could change the lever dynamics.
+The spread is narrow (~3 points). Conceptual **Explain** questions are easiest; **Implement** (write the code/SQL) is hardest — models are stronger at describing Snowflake than at producing exactly-correct syntax. The C+A lift applies across all four types.
 
 ---
 # Key Takeaways
 
-**1. Agentic tools are the single most impactful lever.** Across all 8 paired comparisons in the factorial design, giving the model access to web search, documentation lookup, and skills improved answer quality by +12.5 points and must-have fact pass rate by +19.2 points on average. It was the only lever that improved both metrics simultaneously.
+**1. Agentic tools are the single most impactful lever.** Across every model, giving the model Cortex Code (doc search, SQL, web) improved answer quality +15.5 points and must-have fact pass rate +21.0 points on average — the only lever that improves both.
 
-**2. The best configuration is minimalist.** No system prompt. Just a citation instruction ("cite official docs") and agentic tool access. This scored 93.8%, the highest of all 16 conditions.
+**2. Citation + Agentic is the universal winner.** C+A was the top configuration for all 8 full-factorial models, peaking at 84.1% (`gpt-5.5`). The recipe generalizes across model families and sizes.
 
-**3. More instructions can hurt.** Both the domain prompt and self-critique reduced answer quality when the model had access to tools. The domain prompt constrained tool use; self-critique introduced hedging. Less instruction produced better results.
+**3. Citation without tools is hollow.** The citation instruction lifted quality scores but barely moved the must-have fact rate (+1.6pp), because a bare model cites documentation it never read (citation dimension: 1.5/10 at baseline).
 
-**4. Deployment architecture matters more than prompt engineering.** The same claude-opus-4-6 model went from 60.9% to 93.8% by changing how it was deployed (adding tools and a citation nudge), not by changing what it was told in a system prompt.
+**4. Deployment beats model choice.** The gap between the worst and best configuration of a *single* model (often 25-35 points) dwarfs the gap between models at a *fixed* configuration. How you deploy a model matters more than which model you pick.
 
 ---
 # Thank You
 
-## AEO Benchmark: Full 2⁴ Factorial Experiment
+## AEO Benchmark — V4
 
-- **50 Snowflake developer questions** across 15 product categories, each scored on 5 dimensions (correctness, completeness, recency, citation, recommendation) plus 4 required must-have facts
-- **16 experimental conditions** testing every combination of 4 binary levers, all using the same claude-opus-4-6 backbone model
-- **3-model judge panel** (GPT-5.4, Claude Opus, Llama Maverick) scoring every response independently, with scores averaged for robustness
-- **Key result:** the same model improved from 60.9% to 93.8% (+32.9 percentage points) purely from deployment changes, with no changes to model weights or training
+- **840 Snowflake developer questions** across 32 product categories and 4 question types, each scored on 5 dimensions plus 5 required must-have facts
+- **9 models × 4 deployment configurations** (Baseline, Citation, Agentic, Citation+Agentic) — 33 runs, all soundness-verified
+- **5-model judge panel** scoring every response independently, averaged for robustness
+- **Key result:** the Citation + Agentic configuration won for every model, topping out at 84.1% (`gpt-5.5`); agentic tool access was the biggest single lever (+15.5 score / +21.0 must-have)
 
 *Open the methodology deck for the full experimental design.*
