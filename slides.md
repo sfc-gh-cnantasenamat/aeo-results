@@ -6,7 +6,7 @@
 ---
 # The Punchline
 
-We tested **8 frontier models** (plus GLM 5.2) on **840 Snowflake developer questions**, scored by a panel of **5 LLM judges**, under 4 deployment configurations: **Baseline**, **Citation** (C), **Agentic** (A), and **Citation + Agentic** (C+A).
+We tested **9 models** on **840 Snowflake developer questions**, scored by a panel of **5 LLM judges**, under 4 deployment configurations: **Baseline**, **Citation** (C), **Agentic** (A), and **Citation + Agentic** (C+A).
 
 **The result is the same for every single model:** the **C+A** configuration wins.
 
@@ -14,7 +14,7 @@ We tested **8 frontier models** (plus GLM 5.2) on **840 Snowflake developer ques
 
 **Best configuration (`gpt-5.5` with Citation + Agentic):** **84.1%** answer quality, 79.9% must-have fact pass rate.
 
-Averaged across all 8 models, moving from Baseline to C+A lifted answer quality **+26.5 points** and must-have fact pass rate **+22.6 points** — with no change to model weights or training. The only difference was how each model was deployed.
+Averaged across the 8 full-factorial models, moving from Baseline to C+A lifted answer quality **+26.5 points** and must-have fact pass rate **+22.6 points** — with no change to model weights or training. The only difference was how each model was deployed.
 
 ```
   Answer Quality (8-model average)
